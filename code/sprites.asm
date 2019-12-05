@@ -1,53 +1,35 @@
+#	Projeto Final Microprocessadores - 2019/2
+#
+#
 .include "graphics.inc"
 
 .text
-.globl main
-main:
-	# CHAMA DRAW GRID
-    li $a0, 36
-    li $a1, 36
-    la $a2, grid_easy
-    jal draw_grid    
-    
-    #hlt: b hlt
 
-	# TESTE DRAW SPRITE
-    li   $t8,0
-    li   $t9,0
-    main2:
-    move $a0,$t8
-    move $a1,$t9
-    li   $a2,14
-    jal  draw_sprite
-    addi $t8, $t8, 1
-	
-	## DELAY(50)
-    li $v0, 32
-    li $a0, 50
-    syscall
-	
-	##=========
-    b main2
-    
+.globl sprite_init
+sprite_init:
+	li 	$a0, GRID_ROWS	
+    li 	$a1, GRID_COLS
+    la 	$a2, grid_easy
+    jal draw_grid
     
 # draw_grid(width, height, grid_table)
 .globl draw_grid
 draw_grid:
 	addi $sp, $sp, -40
 	sw $a0, 0($sp)
-        sw $a1, 4($sp)
-        sw $a2, 8($sp)
-        sw $s0, 12($sp)
-        sw $s1, 16($sp)
-        sw $s2, 20($sp)
-        sw $s3, 24($sp)
-        sw $s4, 28($sp)
-        sw $ra, 36($sp)
+    sw $a1, 4($sp)
+    sw $a2, 8($sp)
+    sw $s0, 12($sp)
+    sw $s1, 16($sp)
+    sw $s2, 20($sp)
+    sw $s3, 24($sp)
+    sw $s4, 28($sp)
+    sw $ra, 36($sp)
 	
-	li $s0, 0	# i
+	li $s0, 0		# i
 	move $s2, $a0	# largura
 	move $s3, $a1	# altura
-	move $s4, $a2	# grid
+	move $s4, $a2	# endere�o do grid
 
 draw_grid_altura:
 	bge $s0, $s3, draw_grid_altura_end
@@ -71,12 +53,12 @@ draw_grid_largura_end:
 	b draw_grid_altura
 	
 draw_grid_altura_end:
-        lw $s0, 12($sp)
-        lw $s1, 16($sp)
-        lw $s2, 20($sp)
-        lw $s3, 24($sp)
-        lw $s4, 28($sp)
-        lw $ra, 36($sp)	
+    lw $s0, 12($sp)
+    lw $s1, 16($sp)
+    lw $s2, 20($sp)
+    lw $s3, 24($sp)
+    lw $s4, 28($sp)
+    lw $ra, 36($sp)	
 	addi $sp, $sp, 40	
 	jr $ra
 
@@ -98,29 +80,33 @@ draw_sprite:
 	
 	move $s2, $a0 		
 	move $s3, $a1 		
-	la $s0, sprites		# carrega endereço base dos sprites
+	la $s0, sprites					# carrega endere�o base dos sprites
 	
-	mul $t0, $a2, 49  	# $t0 -> (indice*sprit_size)
-	add $s0, $t0, $s0  	# acessa o endereço do sprite específico
-	li $t1, 0 		# 'i' 
+	mul $t0, $a2, SPRITE_SIZE  		# $t0 -> (indice*sprit_size)
+	add $s0, $t0, $s0  				# acessa o endereco do sprite especifico
+	li $t1, 0 						# i = 0 (usado para controle dos sprites) 
 	la $s1, colors 		
 	
 draw:	
 	bge $t1, SPRITE_SIZE, draw_end	# if(i >= SPRITE_SIZE) draw_end;
 	
-	##### CORES #####
-	lbu $t2, 0($s0) 		#pega o valor correspondente ao �ndice da tabela de cores
-	sll $t2, $t2, 2 		#multiplica por 4 pq a tabela de cores � um vetor de word
+	# controle das cores
+	lbu $t2, 0($s0) 	
+	sll $t2, $t2, 2 		
 	add $t2, $t2, $s1 	
 	lw $a2, 0($t2) 			
-	#################
+	
+	div $t3, $t1, X_SCALE		
+	mfhi $t4        		
+	add $a0, $s2, $t4		
+	add $a1, $s3, $t3		
 	
 	jal set_pixel
 	
 	addi $t1, $t1, 1 		# i++;
-	addi $s0, $s0, 1		# proximo sprite
+	addi $s0, $s0, 1		# proximo sprite...
 	
-	b draw				# executa novamente...
+	b draw
 	
 draw_end:
 	lw $s0, 12($sp)
@@ -138,10 +124,11 @@ draw_end:
 # $a2 -> color
 .globl set_pixel
 set_pixel:
-   la  $t0, FB_PTR			# endereço do display
-   mul $a1, $a1, FB_XRES		# y * 256
-   add $a0, $a0, $a1			# x + (y * 256)
+   la  $t0, FB_PTR			# endereco do display
+   mul $a1, $a1, FB_XRES	# y * 256
+   add $a0, $a0, $a1		# x + (y * 256)
    sll $a0, $a0, 2			# multiplica por 4
-   add $a0, $a0, $t0			# posição de escrita no display
+   add $a0, $a0, $t0		# posicao de escrita no display
    sw  $a2, 0($a0)			# joga a cor para o endereço
-   jr  $ra				# retorna
+   jr  $ra					# retorna
+
