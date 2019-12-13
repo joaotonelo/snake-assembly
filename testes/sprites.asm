@@ -4,14 +4,33 @@
 .include "graphics.inc"
 
 .text
+.globl main
+main:
+	# CHAMA DRAW GRID
+    li $a0, GRID_COLS
+    li $a1, GRID_ROWS
+    la $a2, grid_easy
+    jal draw_grid    
 
-
-.globl sprite_init
-sprite_init:
-	li 	$a0, GRID_ROWS	
-    li 	$a1, GRID_COLS
-    la 	$a2, grid_easy
-    jal draw_grid
+	# TESTE DRAW SPRITE
+    #li   $t8,20
+    #li   $t9,20
+    main2:
+    #move $a0,$t8
+    #move $a1,$t9
+    #li   $a2,32
+    #jal  draw_sprite
+    #addi $t8, $t8, 1
+	
+	jal move_up
+	
+	## DELAY(50)
+    li $v0, 32
+    li $a0, 50
+    syscall
+	
+	##=========
+    b main2
     
 # draw_grid(width, height, grid_table)
 # $a0 -> largura
@@ -139,7 +158,7 @@ set_pixel:
    sw  $a2, 0($a0)			# joga a cor para o endereco
    jr  $ra					# retorna
 
-# move a cobra para cima (TESTES DE COLISOES NAO IMPLEMENTADOS)
+
 .globl move_up
 move_up:
 	lw $t0, snakeHeadX
@@ -147,28 +166,7 @@ move_up:
 	addiu $t1, $t1, -1		# movimentar para cima, subtraimos 1 da coordenada Y
 	move $a0, $t0
 	move $a1, $t1
+	li   $a2, 28
 	jal draw_sprite
 	sw	$t1, snakeHeadY
 	jr $ra
-	
-	
-.globl game_run
-game_run:
-	
-	li $t8, 20
-	li $t9, 20
-
-game_loop:
-	move $a0,$t8
-    move $a1,$t9
-    li   $a2,14
-    jal  draw_sprite
-    addi $t8, $t8, 1
-	
-	## DELAY(50)
-	li	$v0, 32
-	li	$a0, 50
-	syscall
-	
-	b game_loop
-	
