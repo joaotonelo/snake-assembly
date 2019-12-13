@@ -54,27 +54,48 @@ interupt:
 	beq		$t1, 115, snake_move_down
 	beq		$t1, 97,  snake_move_left
 	beq		$t1, 100,  snake_move_right
+	
+	beq		$t1, 119, snake_move_up
+	beq		$t1, 115, snake_move_down
+	beq		$t1, 97,  snake_move_left
+	beq		$t1, 100,  snake_move_right
 	beq		$t1, 32,  pause_game
 
 ################################################
 ### CONFERIR MELHOR LUGAR PARA ESTAS FUNCOES ###
 ################################################
 snake_move_down:
+	#jal set_move_down
+	li	 $t8, 0
+	addi $t9, $t9, 1
+    li   $s7,29
+    
 	li $a0, 115
 	li $v0, 1
 	syscall
 	j intDone
 	
 snake_move_up:
+	li	 $t8, 0
+	addi $t9, $t9, -1
+    li   $s7, 29		# <-- CORRIGIR ESTA PARTE!!!
 	j intDone
 	
 snake_move_left:
+	addi $t8, $t8, -1
+	li	 $t9, 0
+	li   $s7, 25
+	
 	li $a0, 97
 	li $v0, 1
 	syscall
 	j intDone
 	
 snake_move_right:
+	addi $t8, $t8, 1
+	li	 $t9, 0
+	li   $s7, 25		# <-- CORRIGIR SPRITE!!!
+	
 	li $a0, 100
 	li $v0, 1
 	syscall
