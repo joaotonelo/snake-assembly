@@ -8,6 +8,23 @@
 main:	
 	# INICIALIZACOES
 	jal enable_keyboard_int		# habilita teclado
+	li $t0, 31
+	sw $t0, snakeHeadX
+	sw $t0, snakeHeadY
+	sw $t0, snakeTailX
+	li $t0, 37
+	sw $t0, snakeTailY
+	li $t0, 119
+	sw $t0, direction
+	sw $t0, tailDirection
+	li $t0, 10
+	sw $t0, scoreGain
+	li $t0, 200
+	sw $t0, gameSpeed
+	sw $zero, arrayPosition
+	sw $zero, locationInArray
+	sw $zero, scoreArrayPosition
+	sw $zero, score
 
 	# CHAMA DRAW GRID
     li $a0, GRID_COLS
@@ -22,7 +39,8 @@ main:
     li	$t8, 0					# incremento de x
     li	$t9, 0					# incremento de y
     
-    jal initial_move_direction	# inicia o jogo com a cobra se movendo para direita
+    jal	snake_move_down
+   # jal initial_move_direction	# inicia o jogo com a cobra se movendo para direita
 
 main2:							# aqui esta o loop principal do jogo
 
@@ -258,10 +276,8 @@ snake_move_down:
 	addi $sp, $sp, -32
 	sw $ra, 28($sp)
 	#########################
-	
 	lw $a0, snakeHeadX
 	lw $a1, snakeHeadY
-	#jal CheckGameEndingCollision
 	
 	#draw head in new position, move Y position up
 	lw $t0, snakeHeadX
@@ -282,38 +298,98 @@ snake_move_down:
 	add $a0, $t0, $zero
 	add $a1, $t1, $zero
 	li $a2, 25
-	jal draw_sprite	
+	jal		draw_sprite					# jump to draw_sprite and save position to $ra
+	
+	j		UpdateTailPosition			# jump to UpdateTailPosition
+	
 	
 	lw 	 $ra, 28($sp)
 	addi $sp, $sp, 32
 	jr   $ra
 
-initial_move_direction:
-	li	 $t8, 0
-	addi $t9, $t9, 1
-  	li   $s7, 25
-  	jr	 $ra
-  
-  
-play_sound:
-	#### CONSTROI PILHA ####
-	addi $sp, $sp, -32
-	sw $a0, 0($sp)
-	sw $a1, 4($sp)
-	sw $a2, 8($sp)
-	sw $ra, 28($sp)
-	#########################
+UpdateTailPosition:	
+	lw $t2, tailDirection
+	#branch based on which direction tail is moving
+	beq  $t2, 119, MoveTailUp
+	beq  $t2, 115, MoveTailDown
+	#beq  $t2, 97, MoveTailLeft
+	#beq  $t2, 100, MoveTailRight
+
+MoveTailUp:
+	#get the screen coordinates of the next direction change
+	lw $t8, locationInArray
+	la $t0, directionChangeAddressArray #get direction change coordinate
+	add $t0, $t0, $t8
+	lw $t9, 0($t0)
+	lw $a0, snakeTailX  #get snake tail position
+	lw $a1, snakeTailY
+	#if the index is out of bounds, set back to zero
+	beq $s1, 1, IncreaseLengthUp #branch if length should be increased
+	addiu $a1, $a1, -1 #change tail position if no length change
+	sw $a1, snakeTailY
 	
-	li	$v0, 33
-	li	$a0, 66
-	li	$a1, 50
-	li	$a2, 0
-	li	$a3, 100
-	syscall
+IncreaseLengthUp:
+	li $s1, 0 #set flag back to false
+	bne $t9, $a0, DrawTailUp #change direction if needed
+	la $t3, newDirectionChangeArray  #update direction
+	add $t3, $t3, $t8
+	lw $t9, 0($t3)
+	sw $t9, tailDirection
+	addiu $t8,$t8,4
+	#if the index is out of bounds, set back to zero
+	bne $t8, 396, StoreLocationUp
+	li $t8, 0
+StoreLocationUp:
+	sw $t8, locationInArray 
+DrawTailUp:
+	jal		draw_sprite				# jump to draw_sprite and save position to $ra
 	
-	lw	 $a0, 0($sp)
-	lw	 $a1, 4($sp)
-	lw	 $a2, 8($sp)
-	lw 	 $ra, 28($sp)
-	addi $sp, $sp, 32
-	jr   $ra
+	#erase behind the snake
+	lw $t0, snakeTailX
+	lw $t1, snakeTailY
+	addiu $t1, $t1, 1
+	add $a0, $t0, $zero
+	add $a1, $t1, $zero
+	add $a2, $zero, 25				# selecao do sprite
+	jal		draw_sprite				# jump to draw_sprite and save position to $ra
+	j		draw_fruit				# jump to draw_fruit
+
+MoveTailDown:
+	#get the screen coordinates of the next direction change
+	lw $t8, locationInArray
+	la $t0, directionChangeAddressArray #get direction change coordinate
+	add $t0, $t0, $t8
+	lw $t9, 0($t0)
+	lw $a0, snakeTailX  #get snake tail position
+	lw $a1, snakeTailY
+	beq $s1, 1, IncreaseLengthDown #branch if length should be increased
+	addiu $a1, $a1, 1 #change tail position if no length change
+	sw $a1, snakeTailY
+
+IncreaseLengthDown:
+	li $s1, 0 #set flag back to false
+	bne $t9, $a0, DrawTailDown #change direction if needed
+	la $t3, newDirectionChangeArray  #update direction
+	add $t3, $t3, $t8
+	lw $t9, 0($t3)
+	sw $t9, tailDirection
+	addiu $t8,$t8,4
+	#if the index is out of bounds, set back to zero
+	bne $t8, 396, StoreLocationDown
+	li $t8, 0
+StoreLocationDown:
+	sw $t8, locationInArray  
+DrawTailDown:	
+	li	$a2, 25
+	jal		draw_sprite				# jump to draw_sprite and save position to $ra
+		
+	#erase behind the snake
+	lw $t0, snakeTailX
+	lw $t1, snakeTailY
+	addiu $t1, $t1, -1
+	add $a0, $t0, $zero				# x
+	add $a1, $t1, $zero				# y
+	add	$a2, $zero, 25
+	jal		draw_sprite				# jump to draw_sprite and save position to $ra
+	j		draw_fruit				# jump to draw_fruit
+	
