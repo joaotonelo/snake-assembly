@@ -1,34 +1,43 @@
-#	Projeto Final Microprocessadores - 2019/2
-#	Snake game
-#
-#	Guilherme Camargo Valese
-#	João Pedro Tonelo
-#	Nycolas	
+#################################################
+#	Projeto Final Microprocessadores - 2019/2	#
+#				Snake game						#
+#												#
+#	Guilherme Camargo Valese					#
+#	Joao Pedro Tonelo							#
+#	Nycolas	de Abreu Coelho						#
+#################################################
 
 .include "graphics.inc"
 .include "macros.asm"
 .include "game.asm"
 
+.eqv	SNAKE_SPRITE_ID			2
+
 .data
 intro_msg:	.asciiz	"Snake game\n"
 end_msg:	.asciiz	"Jogo finalizado"
+keyboard_init_msg:	.asciiz "keyboard... "
+ok_msg:				.asciiz "OK!\n"
 
 buffer(0, 0, moveSnake)
-sprites(20, 20, 0, 1, 7, snake)
+sprites(20, 20, 0, 1, 3, snake)
 
 .text
 .globl main
 main:
 	print_string	intro_msg
 	# INICIALIZACOES
-	#jal enable_keyboard_int		# habilita teclado
-	
+	print_string	keyboard_init_msg
+	jal enable_keyboard_int		# habilita teclado
+	print_string	ok_msg
+
 	# CHAMA DRAW GRID
     li $a0, GRID_COLS
     li $a1, GRID_ROWS
     la $a2, grid_easy			# mapa desenhado (grid_easy/grid_hard)
     jal draw_grid
-
+	
+	jal draw_fruit
 _main_loop:
 	delay 50					# delay em ms (impacta na velocidade do jogo)
 	
@@ -49,7 +58,6 @@ _main_loop:
 	add	$a0, $s2, $t3			# atualiza a coordenada x
 	add	$a1, $s3, $t5			# atualiza a coordenada y
 	
-	
 	sw	$s2, 8($s0)
 	sw	$s3, 12($s0)
 	
@@ -67,10 +75,12 @@ move_snake:
 	add	$a0, $t0, $t3			# atualiza a coordenada x	
 	add	$a1, $t7, $t5			# atualiza a coordenada y
 	
-	add	$t4, $t6, $t4
-	bnez	$t4, update_snake_position
 	jal check_wall
 	bnez $v0, move_snake_end
+	
+	j update_snake_position
+	add	$t4, $t6, $t4
+	bnez	$t4, update_snake_position
 	
 update_snake_position:
 	add	$a0, $t0, $t1
@@ -78,19 +88,12 @@ update_snake_position:
 	add $a1, $t2, $t7
 	sw	$a1, 4($s0)				# salva a nova coordenada
 	
-	li	$a2, 13		# <-- PROBLEMA NESTA PARTE
+	li	$a2, SNAKE_SPRITE_ID	# <-- PROBLEMA NESTA PARTE
+	jal check_fruit
 	jal draw_sprite
 
 move_snake_end:
 	j _main_loop
-	
-	
-	b _main_loop
-
-
-check_wall:
-	li	$v0, 0
-	jr	$ra
 	
 	
 # draw_grid(width, height, grid_table)
@@ -186,9 +189,10 @@ set_pixel:
    add $a0, $a0, $t0		# posicao de escrita no display
    sw  $a2, 0($a0)			# joga a cor para o endereco
    jr  $ra					# retorna
-
-# insere elementos em posicoes aleatorias do mapa
+	
+.globl draw_fruit
 draw_fruit:
+	cria_pilha	$a0, $a1, $a2
 	li $v0, 42
 	li $a1, 62
 	syscall
@@ -207,4 +211,52 @@ draw_fruit:
 	li 	$a2, 3
 	jal draw_sprite
 
-	jr	$ra
+	desfaz_pilha $a0, $a1, $a2
+
+end_game:
+	end_game_sound
+	popup_message	end_msg
+	
+	exit
+	
+check_wall:
+cria_pilha $s0, $s1, $s2, $s3
+
+
+	mul $s0, $a1, 36         
+	add $s1, $a0, $s0   
+	add $s1, $s1, $a2 				#calculando posiï¿½ï¿½o do vetor na grid
+	lb $s0, 0($s1) 
+	addi $s0, $s0, -64 				#sprite id
+	move $v0, $zero 				#assumindo que nï¿½o tem parede
+
+
+	beq $s0, 14, wall
+	j	check_wall_end
+
+wall:
+	addi $v0, $v0, 1 #tem parede
+  	jal end_game
+  	
+check_wall_end:
+	desfaz_pilha $s0, $s1, $s2, $s3
+
+check_fruit:
+	cria_pilha $t0, $t1, $t2, $t3
+	lw	$t0, fruitPositionX
+	lw	$t1, fruitPositionY
+	lw	$t2, 0($s0)				# carrega em $t1 a coordenada x
+	lw	$t3, 4($s0)				# carrega em $t2 a coordenada y
+	
+	beq	$t2, $t0, check_fruit_y
+	j check_fruit_end
+	
+check_fruit_y:
+	bne	$t1, $t3, check_fruit_end
+	jal draw_fruit				# desenha em nova posicao
+	# INCLUIR AUMENTO NO COMPRIMENTO
+	popup_message	end_game
+	
+check_fruit_end:
+	desfaz_pilha $t0, $t1, $t2, $t3
+	

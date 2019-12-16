@@ -1,7 +1,9 @@
 # MAV120
 # Mathew Varughese
 #
-# Modified by Guilherme Camargo
+# Modified by Guilherme Camargo Valese
+
+# A utilizacao das macros para criacao da pilha nao segue o padrao visto em sala de aula
 
 .macro sprites(%pos_x, %pos_y, %mov_x, %mov_y, %id, %struct)
 %struct:
@@ -253,7 +255,7 @@
 	jr $ra
 .end_macro
 
-.macro desfaz_pilha %r1, %r2, %r3, %r4, %r5, %r6, $r7, %r8, %r9
+.macro desfaz_pilha %r1, %r2, %r3, %r4, %r5, %r6, %r7, %r8, %r9
 	lw $ra, 0($sp)
 	lw %r1, 4($sp)
 	lw %r2, 8($sp)
@@ -266,4 +268,14 @@
 	lw %r9, 36($sp)
 	addi $sp, $sp, 40
 	jr $ra
+.end_macro
+
+######### 
+.macro end_game_sound
+	li	$v0, 33
+	add $a0, $zero, 72
+	addi $a1, $zero, 100
+	add $a2, $zero, 2
+	addi $a3, $zero, 120
+	syscall
 .end_macro
