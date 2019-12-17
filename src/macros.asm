@@ -279,3 +279,12 @@
 	addi $a3, $zero, 120
 	syscall
 .end_macro
+
+.macro new_fruit_sound
+	li	$v0, 33
+	add $a0, $zero, 72
+	addi $a1, $zero, 50
+	add $a2, $zero, 5
+	addi $a3, $zero, 120
+	syscall
+.end_macro

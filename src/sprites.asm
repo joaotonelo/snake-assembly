@@ -14,36 +14,48 @@
 .eqv	SNAKE_SPRITE_ID			2
 
 .data
-intro_msg:	.asciiz	"Snake game\n"
-end_msg:	.asciiz	"Jogo finalizado"
+intro_msg:			.asciiz	"SNAKE GAME\n\n"
+end_msg:			.asciiz	"Jogo finalizado"
 keyboard_init_msg:	.asciiz "keyboard... "
+grid_init_msg:		.asciiz "grid....... "
+fruit_spawn_msg:	.asciiz "fruit...... "
 ok_msg:				.asciiz "OK!\n"
+new_fruit_msg:		.asciiz "new fruit\n"		# <! Debug
+check_fruit_y_msg:	.asciiz "fruit y\n"			# <! Debug
 
 buffer(0, 0, moveSnake)
 sprites(20, 20, 0, 1, 3, snake)
+
+pontuacao:			.word 0
 
 .text
 .globl main
 main:
 	print_string	intro_msg
+
 	# INICIALIZACOES
 	print_string	keyboard_init_msg
 	jal enable_keyboard_int		# habilita teclado
 	print_string	ok_msg
 
-	# CHAMA DRAW GRID
+	print_string	grid_init_msg
     li $a0, GRID_COLS
     li $a1, GRID_ROWS
     la $a2, grid_easy			# mapa desenhado (grid_easy/grid_hard)
     jal draw_grid
+	print_string	ok_msg
 	
+	print_string	fruit_spawn_msg
 	jal draw_fruit
+	print_string	ok_msg
+	
 _main_loop:
 	delay 50					# delay em ms (impacta na velocidade do jogo)
 	
 	la	$s0, snake	
 	la	$s1, moveSnake
 	la	$a2, grid_easy
+	
 	
 	lw	$s2, 0($s1)				# carrega em $s2 o mov_x
 	lw	$s3, 4($s1)				# carrega em $s3 o mov_y
@@ -62,6 +74,10 @@ _main_loop:
 	sw	$s3, 12($s0)
 	
 move_snake:
+
+	jal check_fruit				# confere se atingiu a fruta
+	beq $v0, 1, draw_fruit		# desenha em nova posicao
+
 	lw	$t0, 8($s0)
 	lw	$t7, 12($s0)
 	
@@ -75,8 +91,8 @@ move_snake:
 	add	$a0, $t0, $t3			# atualiza a coordenada x	
 	add	$a1, $t7, $t5			# atualiza a coordenada y
 	
-	jal check_wall
-	bnez $v0, move_snake_end
+	jal collision_check			# checa se colidiu em algo
+	beq	$v0, 1, end_game		# encerra o jogo	
 	
 	j update_snake_position
 	add	$t4, $t6, $t4
@@ -89,7 +105,6 @@ update_snake_position:
 	sw	$a1, 4($s0)				# salva a nova coordenada
 	
 	li	$a2, SNAKE_SPRITE_ID	# <-- PROBLEMA NESTA PARTE
-	jal check_fruit
 	jal draw_sprite
 
 move_snake_end:
@@ -139,7 +154,6 @@ draw_grid_altura_end:
 # $a0 -> X
 # $a1 -> Y
 # $a2 -> sprite_id
-.globl draw_sprite
 draw_sprite:
 	cria_pilha	$s0, $s1, $s2, $s3
 	move $s2, $a0
@@ -180,7 +194,26 @@ draw_end:
 # $a0 -> x
 # $a1 -> y
 # $a2 -> color
-.globl set_pixel
+
+draw_fruit:
+	cria_pilha	$a0, $a1, $a2
+	new_fruit_sound
+	li $v0, 42
+	li $a1, 62
+	syscall
+	#increment the X position so it doesnt draw on a border
+	addiu $a0, $a0, 7
+	sw $a0, fruitPositionX
+	syscall
+	#increment the Y position so it doesnt draw on a border
+	addiu $a0, $a0, 7
+	sw $a0, fruitPositionY
+	lw 	$a0, fruitPositionX
+	lw 	$a1, fruitPositionY
+	li 	$a2, 3
+	jal draw_sprite
+	desfaz_pilha $a0, $a1, $a2
+
 set_pixel:
    la  $t0, FB_PTR			# endereco do display
    mul $a1, $a1, FB_XRES	# y * 256
@@ -189,74 +222,77 @@ set_pixel:
    add $a0, $a0, $t0		# posicao de escrita no display
    sw  $a2, 0($a0)			# joga a cor para o endereco
    jr  $ra					# retorna
-	
-.globl draw_fruit
-draw_fruit:
-	cria_pilha	$a0, $a1, $a2
-	li $v0, 42
-	li $a1, 62
-	syscall
 
-	#increment the X position so it doesnt draw on a border
-	addiu $a0, $a0, 7
-	sw $a0, fruitPositionX
-	syscall
-
-	#increment the Y position so it doesnt draw on a border
-	addiu $a0, $a0, 7
-	sw $a0, fruitPositionY
-
-	lw 	$a0, fruitPositionX
-	lw 	$a1, fruitPositionY
-	li 	$a2, 3
-	jal draw_sprite
-
-	desfaz_pilha $a0, $a1, $a2
 
 end_game:
-	end_game_sound
-	popup_message	end_msg
+	li $v0, 31
+	li $a0, 28
+	li $a1, 250
+	li $a2, 32
+	li $a3, 127
+	syscall
+		
+	li $a0, 33
+	li $a1, 250
+	li $a2, 32
+	li $a3, 127
+	syscall
 	
+	li $a0, 47
+	li $a1, 1000
+	li $a2, 32
+	li $a3, 127
+	syscall
+
+	li $v0, 56
+	la $a0, end_game_msg
+	lw $a1, pontuacao
+	syscall
+
 	exit
 	
-check_wall:
-cria_pilha $s0, $s1, $s2, $s3
-
-
+collision_check:
+	cria_pilha $s0, $s1, $s2, $s3
 	mul $s0, $a1, 36         
 	add $s1, $a0, $s0   
-	add $s1, $s1, $a2 				#calculando posi��o do vetor na grid
+	add $s1, $s1, $a2 			
 	lb $s0, 0($s1) 
-	addi $s0, $s0, -64 				#sprite id
-	move $v0, $zero 				#assumindo que n�o tem parede
+	addi $s0, $s0, -64 				
+	move $v0, $zero 			
 
+	beq $s0, 14, collision
+	j	collision_check_end
 
-	beq $s0, 14, wall
-	j	check_wall_end
-
-wall:
-	addi $v0, $v0, 1 #tem parede
+collision:
   	jal end_game
   	
-check_wall_end:
+collision_check_end:
 	desfaz_pilha $s0, $s1, $s2, $s3
 
+
+# Check fruit
+#	$v0 = 1 -> Colidiu com a fruta
 check_fruit:
-	cria_pilha $t0, $t1, $t2, $t3
-	lw	$t0, fruitPositionX
-	lw	$t1, fruitPositionY
-	lw	$t2, 0($s0)				# carrega em $t1 a coordenada x
-	lw	$t3, 4($s0)				# carrega em $t2 a coordenada y
+	lw 	$t0, fruitPositionX
+	lw 	$t1, fruitPositionY
+	lw	$a0, 0($s0)				# obtem a posicao 'x' da cobra
+	lw	$a1, 4($s0)				# obtem a posicao 'y' da cobra
+	move $v0, $zero
 	
-	beq	$t2, $t0, check_fruit_y
-	j check_fruit_end
-	
+	sub	$t0, $t0, $a0
+	ble	$t0, 2, check_fruit_x
+	#beq	$a0, $t0, check_fruit_x
+	j	check_fruit_end
+check_fruit_x:
+	beq	$a1, $t1, check_fruit_y
+	j	check_fruit_end
 check_fruit_y:
-	bne	$t1, $t3, check_fruit_end
-	jal draw_fruit				# desenha em nova posicao
-	# INCLUIR AUMENTO NO COMPRIMENTO
-	popup_message	end_game
-	
+	lw	$t3, pontuacao
+	add $t3, $t3, 10
+	sw	$t3, pontuacao
+	li 	$v0, 1
 check_fruit_end:
-	desfaz_pilha $t0, $t1, $t2, $t3
-	
+	jr	$ra
+
+
+
