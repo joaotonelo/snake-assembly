@@ -36,4 +36,4 @@ Para correto funcionamento, os módulos abaixo devem estar conectados ao MIPS
 
 O controle do jogo é feito pelas teclas W,A,S,D
 
-![](/home/guilherme/Pictures/2019-12-17-142138_948x628_scrot.png)
+![](https://github.com/joaotonelo/snake-assembly/blob/master/img/2019-12-17-142138_948x628_scrot.png)
