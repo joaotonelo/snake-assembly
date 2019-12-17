@@ -9,13 +9,12 @@
 
 .include "graphics.inc"
 .include "macros.asm"
-.include "game.asm"
 
-.eqv	SNAKE_SPRITE_ID			2
+.eqv	SNAKE_SPRITE_ID			26
 
 .data
 intro_msg:			.asciiz	"SNAKE GAME\n\n"
-end_msg:			.asciiz	"Jogo finalizado"
+end_msg:			.asciiz	"Jogo finalizado. Pontuacao "
 keyboard_init_msg:	.asciiz "keyboard... "
 grid_init_msg:		.asciiz "grid....... "
 fruit_spawn_msg:	.asciiz "fruit...... "
@@ -24,7 +23,7 @@ new_fruit_msg:		.asciiz "new fruit\n"		# <! Debug
 check_fruit_y_msg:	.asciiz "fruit y\n"			# <! Debug
 
 buffer(0, 0, moveSnake)
-sprites(20, 20, 0, 1, 3, snake)
+sprites(20, 20, 0, 1, 3, 0, snake)
 
 pontuacao:			.word 0
 
@@ -41,26 +40,20 @@ main:
 	print_string	grid_init_msg
     li $a0, GRID_COLS
     li $a1, GRID_ROWS
-    la $a2, grid_easy			# mapa desenhado (grid_easy/grid_hard)
+    la $a2, grid_hard			# mapa desenhado (grid_easy/grid_hard)
     jal draw_grid
 	print_string	ok_msg
 	
-	print_string	fruit_spawn_msg
-	jal draw_fruit
-	print_string	ok_msg
-	
-_main_loop:
-	delay 50					# delay em ms (impacta na velocidade do jogo)
-	
 	la	$s0, snake	
+_main_loop:
+	delay 50				# delay em ms (impacta na velocidade do jogo)
 	la	$s1, moveSnake
-	la	$a2, grid_easy
-	
+	la	$a2, grid_hard
 	
 	lw	$s2, 0($s1)				# carrega em $s2 o mov_x
 	lw	$s3, 4($s1)				# carrega em $s3 o mov_y
-	lw	$t1, 0($s0)				# obtem a posicao 'x' da cobra
-	lw	$t2, 4($s0)				# obtem a posicao 'y' da cobra
+	lw	$a0, 0($s0)				# obtem a posicao 'x' da cobra
+	lw	$a1, 4($s0)				# obtem a posicao 'y' da cobra
 	
 	div $t3, $t1, 7				# divide a coordenada x por 7
 	mfhi	$t4
@@ -73,10 +66,8 @@ _main_loop:
 	sw	$s2, 8($s0)
 	sw	$s3, 12($s0)
 	
-move_snake:
-
-	jal check_fruit				# confere se atingiu a fruta
-	beq $v0, 1, draw_fruit		# desenha em nova posicao
+	#jal check_fruit				# confere se atingiu a fruta
+	#beq $v0, 1, draw_fruit		# desenha em nova posicao
 
 	lw	$t0, 8($s0)
 	lw	$t7, 12($s0)
@@ -94,9 +85,9 @@ move_snake:
 	jal collision_check			# checa se colidiu em algo
 	beq	$v0, 1, end_game		# encerra o jogo	
 	
-	j update_snake_position
-	add	$t4, $t6, $t4
-	bnez	$t4, update_snake_position
+	#j update_snake_position
+	#bnez	$t4, move_snake_end
+	#bnez	$t6, move_snake_end
 	
 update_snake_position:
 	add	$a0, $t0, $t1
@@ -194,12 +185,11 @@ draw_end:
 # $a0 -> x
 # $a1 -> y
 # $a2 -> color
-
 draw_fruit:
 	cria_pilha	$a0, $a1, $a2
 	new_fruit_sound
 	li $v0, 42
-	li $a1, 62
+	li $a1, 300
 	syscall
 	#increment the X position so it doesnt draw on a border
 	addiu $a0, $a0, 7
@@ -209,9 +199,17 @@ draw_fruit:
 	addiu $a0, $a0, 7
 	sw $a0, fruitPositionY
 	lw 	$a0, fruitPositionX
+	div $a0, $a0, 7
+	mfhi $t0
 	lw 	$a1, fruitPositionY
+	div $a1, $a1, 7
+	mfhi $t1
 	li 	$a2, 3
+	
+	#beq $t0, $t1, draw_fruit_end
 	jal draw_sprite
+	
+draw_fruit_end:
 	desfaz_pilha $a0, $a1, $a2
 
 set_pixel:
@@ -245,7 +243,7 @@ end_game:
 	syscall
 
 	li $v0, 56
-	la $a0, end_game_msg
+	la $a0, end_msg
 	lw $a1, pontuacao
 	syscall
 
@@ -253,14 +251,17 @@ end_game:
 	
 collision_check:
 	cria_pilha $s0, $s1, $s2, $s3
-	mul $s0, $a1, 36         
+	mul $s0, $a1, 36       
 	add $s1, $a0, $s0   
 	add $s1, $s1, $a2 			
 	lb $s0, 0($s1) 
 	addi $s0, $s0, -64 				
 	move $v0, $zero 			
 
-	beq $s0, 14, collision
+	bge $s0, 5, collision						# parede
+	beq $s0, 3,  incrementa_pontuacao			# fruta rosa
+	beq $s0, 0,  incrementa_pontuacao_amarela	# fruta amarela
+	
 	j	collision_check_end
 
 collision:
@@ -281,7 +282,7 @@ check_fruit:
 	
 	sub	$t0, $t0, $a0
 	ble	$t0, 2, check_fruit_x
-	#beq	$a0, $t0, check_fruit_x
+	beq	$a0, $t0, check_fruit_x
 	j	check_fruit_end
 check_fruit_x:
 	beq	$a1, $t1, check_fruit_y
@@ -294,5 +295,131 @@ check_fruit_y:
 check_fruit_end:
 	jr	$ra
 
+incrementa_pontuacao:
+	sw $ra, 0($s7)
+	li	$t0, 10
+	lw	$t1, pontuacao
+	add $t1, $t1, $t0
+	sw  $t1, pontuacao
+	lw $ra, 0($s7)
+    jr $ra
+	
+incrementa_pontuacao_amarela:
+	sw $ra, 0($s7)
+	li	$t0, 20
+	lw	$t1, pontuacao
+	add $t1, $t1, $t0
+	sw  $t1, pontuacao
+    lw $ra, 0($s7)
+    jr $ra
 
+
+
+# Global Interrupt Handle Routines
+enable_int:
+    mfc0	$t0, $12	 		# record interrupt state
+	ori		$t0, $t0, 0x0001 	# set int enable flag
+	mtc0    $t0, $12	 		# Turn interrupts on.
+	jr      $ra
+	
+disable_int:
+	mfc0	$t0, $12	 		# record interrupt state
+	andi	$t0, $t0, 0xFFFE 	# clear int enable flag
+	mtc0    $t0, $12         	# Turn interrupts off.
+	jr      $ra
+	
+# RX Interrupts Enable (Keyboard)
+.globl enable_keyboard_int
+enable_keyboard_int:
+	addi 	$sp, $sp, -8
+	sw   	$ra, 0($sp)
+	jal  disable_int
+	lui  	$t0,0xffff
+	lw   	$t1,0($t0)      	# read rcv ctrl
+	ori  	$t1,$t1,0x0002  	# set the input interupt enable
+	sw   	$t1,0($t0)	     	# update rcv ctrl
+	jal  enable_int
+	
+	lw   	$ra, 0($sp)
+	addi 	$sp, $sp, 8
+	jr		$ra
+
+.ktext 0x80000180
+interupt:
+	addiu	$sp,$sp,-16
+	sw		$at,12($sp)
+	sw		$t2,8($sp)
+	sw		$t1,4($sp)
+	sw		$t0,0($sp)
+
+	lui     $t0,0xffff     		# get address of control regs
+	lw		$t1,0($t0)     		# read rcv ctrl
+	andi	$t1,$t1,0x0001 		# extract ready bit
+	beq     $t1,$0,intDone 		#
+	lw      $t1,4($t0)     		# read key
+	lw      $t2,8($t0)     		# read tx ctrl
+	andi	$t2,$t2,0x0001 		# extract ready bit
+	beq     $t2,$0,intDone 		# still busy discard
+	sw      $t1, 0xc($t0)  		# write key
+	
+	# controle dos movimentos
+	beq		$t1, 119, set_move_up
+	beq		$t1, 115, set_move_down
+	beq		$t1, 97,  set_move_left
+	beq		$t1, 100, set_move_right
+	beq		$t1, 32,  pause_game
+
+###################################################
+#   	  	CONTROLE DOS MOVIMENTOS
+# altera o incremento das coordenadas
+# seleciona o sprite
+# x = (x + x_pos) x_pos (-1 esquerda, 1 direita)
+# y = (y + y_pos) y_pos (-1 cima, 1 baixo)
+###################################################
+.globl set_move_down
+set_move_down:
+	li	 $t8, 0
+	li   $t9, 1
+  	sw	 $t8, 0($s1)
+  	sw	 $t9, 4($s1)
+	j	 intDone
+
+set_move_up:
+	li	 $t8, 0
+	li   $t9, -1
+  	sw	 $t8, 0($s1)
+  	sw	 $t9, 4($s1)
+	j intDone
+
+set_move_left:
+	li   $t8, -1
+	li	 $t9, 0
+	sw	 $t8, 0($s1)
+  	sw	 $t9, 4($s1)
+	j intDone
+
+set_move_right:
+	li   $t8, 1
+	li	 $t9, 0
+	sw	 $t8, 0($s1)
+  	sw	 $t9, 4($s1)
+	j intDone
+
+pause_game:
+	li	$v0, 32
+	syscall
+	jr	$ra
+	
+intDone:
+	## Clear Cause register
+	mfc0	$t0,$13				# get Cause register, then clear it
+	mtc0	$0, $13
+
+	## restore registers
+	lw	$t0,0($sp)
+	lw	$t1,4($sp)
+	lw	$t2,8($sp)
+	lw 	$at,12($sp)
+	addiu	$sp,$sp,16
+	eret						# rtn from int and reenable ints
 

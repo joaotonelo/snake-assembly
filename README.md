@@ -16,15 +16,16 @@ Autores
 
 - [x] Desenhar grade do jogo
 
-- [ ] Movimentação da cobra
+- [x] Movimentação da cobra
 
 - [ ] Incremento do tamanho
 
-- [ ] Teste de colisões
+- [x] Teste de colisões
 
 - [ ] Inserção das comidas
 
-  
+
+
 
 Para correto funcionamento, os módulos abaixo devem estar conectados ao MIPS
 
@@ -33,10 +34,6 @@ Para correto funcionamento, os módulos abaixo devem estar conectados ao MIPS
 
 
 
- A opção "assemble all files in directory", localizado em "settings" deve estar ativada!
-
-
-
 O controle do jogo é feito pelas teclas W,A,S,D
 
-![](/home/guilherme/Documents/IFSC/mcp/snake-assembly/img/bitmap_display.JPG)
+![](/home/guilherme/Pictures/2019-12-17-142138_948x628_scrot.png)

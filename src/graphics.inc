@@ -108,11 +108,6 @@ colors: .word BLACK, DYELLOW, YELLOW, LYELLOW, BLUE, LBLUE
         .word DGRAY, GRAY, LGRAY, DGREEN, GREEN, LGREEN
 	.word DRED, RED, LRED
 
-snakeHeadX: 	.word 31
-snakeHeadY:		.word 31
-snakeTailX:		.word 31
-snakeTailY:		.word 37
-
 fruitPositionX: .word
 fruitPositionY: .word
 

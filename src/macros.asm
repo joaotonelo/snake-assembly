@@ -5,7 +5,7 @@
 
 # A utilizacao das macros para criacao da pilha nao segue o padrao visto em sala de aula
 
-.macro sprites(%pos_x, %pos_y, %mov_x, %mov_y, %id, %struct)
+.macro sprites(%pos_x, %pos_y, %mov_x, %mov_y, %id, %dir, %struct)
 %struct:
 .align	2			# 2 -> word
 	.word	%pos_x
@@ -13,6 +13,7 @@
 	.word	%mov_x
 	.word	%mov_y
 	.word	%id
+	.word	%dir
 .end_macro
 
 .macro	buffer(%mov_x, %mov_y, %struct)
